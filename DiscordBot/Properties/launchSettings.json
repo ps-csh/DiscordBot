@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DiscordBot": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}
