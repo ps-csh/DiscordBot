@@ -1,5 +1,6 @@
 # DiscordBot
-Bot for Discord, made as a hobby project
+Bot for Discord, made as a personal hobby project.<br>
+A work-in-progress, implementing features I think would be neat.
 
 <b>Features</b>
 
