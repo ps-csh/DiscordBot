@@ -110,7 +110,7 @@ namespace DiscordBot.ViewModels
             CurrentImage = image;
             var savedImage = dbContext.Images.Include(i => i.Tags).FirstOrDefault(i => image.FullName == i.PhysicalUrl);
             CurrentImageIsSaved = (savedImage != null);
-            Tags = (savedImage != null) ? string.Join(" ", savedImage.Tags.Select(t => t.Name)) : "";
+            Tags = (savedImage != null) ? string.Join(" ", savedImage.Tags.Select(t => t.Name)) + " " : "";
 
             NotifyPropertyChanged(nameof(CurrentImage));
         }
@@ -168,11 +168,41 @@ namespace DiscordBot.ViewModels
 
         public async Task<List<string>> GetSimilarTags(string tag)
         {
-            var tags = dbContext.Tags.Where(t => t.Name.Contains(tag))
+            try
+            {
+                var tags = dbContext.Tags.Where(t => t.Name.Contains(tag))
                 .OrderBy(t => t.Name.IndexOf(tag))
                 .Select(t => t.Name);
-            
-            return await tags.ToListAsync();
+
+                return await tags.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+
+            return null;
+        }
+
+        public void AddTag(string tag)
+        {
+            try
+            {
+                if (!Tags.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(t => t.ToLower() == tag.Trim().ToLower()))
+                {
+                    Tags += $"{tag.Trim().ToLower()} ";
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        public void ClearTags()
+        {
+            SuggestedTags?.Clear();
+            NotifyPropertyChanged(nameof(SuggestedTags));
         }
 
         public class ImageInfo

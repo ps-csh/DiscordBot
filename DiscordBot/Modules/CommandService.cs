@@ -35,6 +35,10 @@ namespace DiscordBot.Modules
             
         }
 
+        /// <summary>
+        /// Gets all classes that inherit from CommandModule from the assemblies.
+        /// Stores them in internal commandModules list
+        /// </summary>
         public void LoadClasses()
         {
             var moduleType = typeof(CommandModule);
@@ -58,6 +62,10 @@ namespace DiscordBot.Modules
             }
         }
 
+        /// <summary>
+        /// Get all commands from the command modules
+        /// </summary>
+        /// <returns>List of KeyValuePairs containing the command name(identifier) and command info</returns>
         public IEnumerable<KeyValuePair<string, Func<CommandInfo, Task>>> GetCommands()
         {
             List<KeyValuePair<string, Func<CommandInfo, Task>>> commands = new List<KeyValuePair<string, Func<CommandInfo, Task>>>();
@@ -65,7 +73,9 @@ namespace DiscordBot.Modules
             {
                 try
                 {
-                    var methods = module.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+                    // Get all instancee methods from the module, whether they are public or private
+                    // The select only the methods with the CommandAttribute
+                    var methods = module.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                         .Select(m => new KeyValuePair<MethodInfo, CommandAttribute>(m, m.GetCustomAttribute<CommandAttribute>()))
                         .Where(m => m.Value != null)
                         .ToList();            
@@ -92,7 +102,7 @@ namespace DiscordBot.Modules
                 }
             }
 
-            logger.LogInfo($"Commands: {commands.Count}");
+            logger.LogInfo($"Loaded {commands.Count} commands from assembly");
 
             return commands;
 

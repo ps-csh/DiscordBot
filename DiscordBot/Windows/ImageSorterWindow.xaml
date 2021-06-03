@@ -48,12 +48,13 @@
                 <Label Content="Path" Margin="0 5 0 0"></Label>
                 <TextBox Text="{Binding CurrentImage.FullName, Mode=OneWay}"></TextBox>
                 <Label Content="Tags" Margin="0 5 0 0"></Label>
-                <TextBox Name="TagsInput" Text="{Binding Tags, Mode=TwoWay}" TextChanged="TagsInput_TextChanged"></TextBox>
+                <TextBox Name="TagsInput" Text="{Binding Tags, Mode=TwoWay}" TextChanged="TagsInput_TextChanged"
+                         PreviewKeyDown="TagsInput_PreviewKeyDown"></TextBox>
             </StackPanel>
         </Border>
         <ListBox Grid.RowSpan="2" Grid.ColumnSpan="2" Name="TagSuggestionsList" ItemsSource="{Binding SuggestedTags}" Height="Auto"
-                 Visibility="{Binding SuggestedTags.Count, Converter={StaticResource IntToVisibilityConverter}}" Margin="1 140 10 10"
-                 SelectionMode="Single" KeyDown="TagSuggestionsList_KeyDown"></ListBox>
+                 Visibility="{Binding SuggestedTags.Count, Converter={StaticResource IntToVisibilityConverter}, Mode=OneWay}" Margin="1 140 10 10"
+                 SelectionMode="Single" PreviewKeyDown="TagSuggestionsList_PreviewKeyDown"></ListBox>
         <Button Grid.Column="2" Name="SaveButton" Content="Save" Width="100" Height="40" Click="SaveButton_Click"
                 VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="10"></Button>
         <CheckBox Grid.Column="2" Content="IsSaved" IsChecked="{Binding CurrentImageIsSaved, Mode=OneWay}" IsEnabled="False"

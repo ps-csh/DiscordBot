@@ -27,6 +27,7 @@ namespace DiscordBot.Windows
 
             imageSorterViewModel = viewModel;
             DataContext = imageSorterViewModel;
+            //TagSuggestionsList.Visibility = Visibility.Collapsed;
         }
 
         private void ThumbnailList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -45,30 +46,51 @@ namespace DiscordBot.Windows
             imageSorterViewModel.SaveImage();
         }
 
-        private void TagSuggestionsList_KeyDown(object sender, KeyEventArgs e)
+        private void TagSuggestionsList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            try
+            {
+                if (e.Key == Key.Enter)
+                {
+                    string tag = (string)TagSuggestionsList.SelectedItem;
+
+                    int wordStart = Math.Max(TagsInput.Text.LastIndexOf(' ', TagsInput.CaretIndex - 1) + 1, 0);
+                    int wordEnd = TagsInput.Text.IndexOf(' ', TagsInput.CaretIndex);
+                    string currentTag = (wordEnd > 0) ?
+                        TagsInput.Text.Substring(wordStart, wordEnd - wordStart) :
+                        TagsInput.Text.Substring(wordStart);
+
+                    string tagEnd = tag.Substring(currentTag.Trim().Length) + " ";
+                    //TagsInput.Text = TagsInput.Text.Insert(Math.Max(TagsInput.CaretIndex, 0), tagEnd);
+                    TagsInput.Text = TagsInput.Text.Remove(wordStart, currentTag.Length).Insert(wordStart, tag + " ");
+                    TagsInput.CaretIndex = TagsInput.Text.Length;
+                    TagsInput.Focus();
+                    imageSorterViewModel.ClearTags();
+                }
+                else if (TagSuggestionsList.Items.Count > 0)
+                {
+                    if (e.Key == Key.Up)
+                    {
+                        e.Handled = true;
+                        int index = TagSuggestionsList.Items.IndexOf(TagSuggestionsList.SelectedItem);
+                        index = (index + TagSuggestionsList.Items.Count - 1) % TagSuggestionsList.Items.Count;
+
+                        TagSuggestionsList.SelectedItem = TagSuggestionsList.Items[index];
+                    }
+                    else if (e.Key == Key.Down)
+                    {
+                        e.Handled = true;
+                        int index = TagSuggestionsList.Items.IndexOf(TagSuggestionsList.SelectedItem);
+                        index = (index + 1) % TagSuggestionsList.Items.Count;
+
+                        TagSuggestionsList.SelectedItem = TagSuggestionsList.Items[index];
+                    }
+                }
+            }
+            catch
             {
 
             }
-            else if (TagSuggestionsList.Items.Count > 0)
-            {
-                if (e.Key == Key.Up)
-                {
-                    int index = TagSuggestionsList.Items.IndexOf(TagSuggestionsList.SelectedItem);
-                    index = (index + TagSuggestionsList.Items.Count - 1) % TagSuggestionsList.Items.Count;
-
-                    TagSuggestionsList.SelectedItem = TagSuggestionsList.Items[index];
-                }
-                else if (e.Key == Key.Down)
-                {
-                    int index = TagSuggestionsList.Items.IndexOf(TagSuggestionsList.SelectedItem);
-                    index = (index + 1) % TagSuggestionsList.Items.Count;
-
-                    TagSuggestionsList.SelectedItem = TagSuggestionsList.Items[index];
-                }
-            }
-            
         }
 
         private void TagsInput_TextChanged(object sender, TextChangedEventArgs e)
@@ -90,10 +112,24 @@ namespace DiscordBot.Windows
                         imageSorterViewModel.DebounceGetSimilarTags(currentTag.Trim());
                     }
                 }
+                else
+                {
+                    imageSorterViewModel.ClearTags();
+                }
             }
             catch
             {
 
+            }
+        }
+
+        private void TagsInput_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Down && TagSuggestionsList.Items.Count > 0)
+            {
+                TagSuggestionsList.Focus();
+                TagSuggestionsList.SelectedItem = TagSuggestionsList.Items[0];
+                e.Handled = true;
             }
         }
     }
