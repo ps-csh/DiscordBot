@@ -17,6 +17,9 @@ namespace DiscordBot.Bot.Commands
         public DiscordApiClient ApiClient { get; private set; }
         public ILogger Logger { get; private set; }
         private readonly string adminID;
+        //TODO: Find a way to set this with DI. It is currently set manually through BotManager.
+        //BotManager has a depency on this class, so we cannot include BotManager for DI here.
+        public DiscordBotUser BotUser { get; set; }
 
         public Dictionary<string, BotCommand> BotCommands { get; private set; }
 
@@ -54,6 +57,7 @@ namespace DiscordBot.Bot.Commands
                 {
                     // All commands are stored in lower case, bot commands are case insensitive
                     BotCommands.Add(c.Key.ToLower(), new BotCommand(c.Value));
+                    Logger.LogInfo($"{c.Key.ToLower()} added to commands");
                 }
                 catch (Exception ex)
                 {
@@ -101,14 +105,34 @@ namespace DiscordBot.Bot.Commands
             else
             {
                 //TODO: Handle non-command responses
-                //TEMP:
-                if (message.Content.Trim().ToLower() == "hello bot" 
-                    || message.Content.Trim().ToLower() == "hi bot"
-                    || message.Content.Trim().ToLower() == "hey bot")
+                //TEMP: replace bot with a reference to BotUser.UserName
+                try
                 {
-                    int x = new Random().Next(0, 3);
-                    string greeting = x == 0 ? "Hi" : x == 1 ? "Hello" : "Hey";
-                    await ApiClient.PostMessage($"{greeting} {message.Sender.Nickname ?? message.Sender.Username}", message.Channel.ID);
+                    if (BotUser?.Username == null)
+                    {
+                        Logger.LogWarning("BotUser Username was not set");
+                        return;
+                    }
+                    else if (message?.Channel?.ID == null)
+                    {
+                        Logger.LogWarning("Channel is null");
+                        return;
+                    }
+
+                    Logger.LogInfo($"Received non command message. {message.Content}, {message.Sender.Nickname ?? message.Sender.Username}, {message.Channel.ID}");
+
+                    if (message.Content.Trim().ToLower() == $"hello {BotUser.Username.ToLower()}"
+                        || message.Content.Trim().ToLower() == $"hi {BotUser.Username.ToLower()}"
+                        || message.Content.Trim().ToLower() == $"hey {BotUser.Username.ToLower()}")
+                    {
+                        int x = new Random().Next(0, 3);
+                        string greeting = x == 0 ? "Hi" : x == 1 ? "Hello" : "Hey";
+                        await ApiClient.PostMessage($"{greeting} {message.Sender.Nickname ?? message.Sender.Username}", message.Channel.ID);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException(ex);
                 }
             }
         }

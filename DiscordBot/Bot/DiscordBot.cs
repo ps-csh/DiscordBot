@@ -52,6 +52,7 @@ namespace DiscordBot.Bot
             DbContext = databaseContext;
             BotUser = new DiscordBotUser();
             CommandHandler = commandHandler;
+            CommandHandler.BotUser = BotUser;
             Logger = logger;
             OwnerID = options.Value.AdminID;
 
@@ -67,6 +68,11 @@ namespace DiscordBot.Bot
                     break;
                 case "GUILD_CREATE":
                     CreateGuild(payload.EventData);
+                    var user = ActiveGuild.Users.FirstOrDefault(x => x.Bot == true);
+                    if (user != null)
+                    {
+                        BotUser.FromUser(user);
+                    }
                     break;
                 default:
                     break;

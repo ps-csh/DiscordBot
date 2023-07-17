@@ -80,11 +80,11 @@ namespace DiscordBot.DiscordAPI
             catch (WebException ex)
             {
                 //TODO: Notify if it was a bad request
-                Logger.LogException(ex, $"Received WebException {ex.Status}\r\nWhen sending: {message}");
+                Logger.LogException(ex, $"Received WebException {ex.Status}\r\nWhen sending: {message} to {channel}");
             }
             catch (Exception ex)
             {
-                Logger.LogException(ex, $"When sending: {message}");
+                Logger.LogException(ex, $"When sending: {message} to {channel}");
             }
 
             return null;

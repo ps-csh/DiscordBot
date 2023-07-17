@@ -42,7 +42,7 @@ namespace DiscordBot.DiscordAPI
             RequestGuildMembers,
             InvalidSession,
             Hello,
-            HeartbeatAck
+            HeartbeatAcknowledge
         }
 
         public delegate void OnMessageCallback(DiscordGatewayPayload payload);
@@ -59,23 +59,23 @@ namespace DiscordBot.DiscordAPI
         private int? lastHeartbeatSequence = null;
         private bool heartbeatAcknowledged;
 
-        private readonly ILogger Logger;
+        private readonly ILogger logger;
 
         //private DiscordApiClient apiClient;
 
         public DiscordGatewayClient(IOptions<BotSecretsConfiguration> configuration, ILogger logger)
         {
-            Logger = logger;
+            this.logger = logger;
+
+            token = configuration.Value.Token;
+            if (string.IsNullOrEmpty(token))
+            {
+                logger.LogWarning("Token was null");
+            }
+
             //TODO: Move gateway uri to config
-            Initialize("wss://gateway.discord.gg", configuration.Value.Token);
-        }
-
-        public void Initialize(string gatewayUri, string botToken)
-        {
-            token = botToken;
-
             //webSocket = new WebSocket(gatewayUri, default, default, OnOpen);
-            webSocket = new WebSocket(gatewayUri);
+            webSocket = new WebSocket("wss://gateway.discord.gg");
 
             // Set websocket callbacks
             webSocket.Opened += (OnOpen);
@@ -104,20 +104,33 @@ namespace DiscordBot.DiscordAPI
 
         private void OnOpen(object sender, EventArgs e)
         {
+            DiscordIdentifyPayload identifyPayload = new DiscordIdentifyPayload(token,
+                new DiscordIdentifyPayload.ConnectionProperties { Device = ".Net" },
+                (int)(DiscordIdentifyPayload.GatewayIntents.Guilds 
+                | DiscordIdentifyPayload.GatewayIntents.GuildMembers
+                | DiscordIdentifyPayload.GatewayIntents.GuildPresences // Required for user list
+                | DiscordIdentifyPayload.GatewayIntents.GuildMessages
+                | DiscordIdentifyPayload.GatewayIntents.DirectMessages
+                | DiscordIdentifyPayload.GatewayIntents.MessageContent));
+
             //TODO: Create an Identify class to send this data instead of manual JSON LINQ
             JObject sendPacket = new JObject();
             sendPacket["op"] = 2;
-            sendPacket["d"] = new JObject();
-            sendPacket["d"]["token"] = token;
-            sendPacket["d"]["v"] = 1;
-            sendPacket["d"]["properties"] = new JObject();
-            sendPacket["d"]["properties"]["device"] = ".Net";
-            sendPacket["large_threshold"] = 250;
-            sendPacket["compress"] = false;
+            sendPacket["d"] = JObject.FromObject(identifyPayload);
+            //sendPacket["d"]["token"] = token;
+            //sendPacket["d"]["v"] = 1;
+            //sendPacket["d"]["properties"] = new JObject();
+            //sendPacket["d"]["properties"]["device"] = ".Net";
+            //sendPacket["large_threshold"] = 50; // Number of offline members this client will receive
+            //sendPacket["compress"] = false;
+            //TODO: send Gateway Intents
+
+            
+            
 
             webSocket.Send(sendPacket.ToString());
 
-            Logger.LogInfo(sendPacket.ToString());
+            logger.LogInfo(sendPacket.ToString());
         }
 
         /// <summary>
@@ -148,11 +161,12 @@ namespace DiscordBot.DiscordAPI
                     case OpCode.Reconnect:
                         break;
                     case OpCode.InvalidSession:
+                        logger.LogWarning("OpCode 9: Invalid Session received.");
                         break;
                     case OpCode.Hello:
                         OnHelloReceived(gatewayPayload);
                         break;
-                    case OpCode.HeartbeatAck:
+                    case OpCode.HeartbeatAcknowledge:
                         heartbeatAcknowledged = true;
                         break;
                     default:
@@ -162,13 +176,14 @@ namespace DiscordBot.DiscordAPI
                 //DELETE: This is only for testing
                 if (gatewayPayload?.EventData != null)
                 {
-                    Logger.LogInfo(gatewayPayload.EventData.ToString());
+                    logger.LogInfo(gatewayPayload.EventData.ToString());
                 }
 
             }
             catch(Exception ex)
             {
-                Logger.LogException(ex);
+                logger.LogException(ex);
+                logger.LogWarning(e?.Message);
             }
         }
 
@@ -176,39 +191,26 @@ namespace DiscordBot.DiscordAPI
         {
             heartbeatTimer?.Stop();
 
-            Logger.LogInfo(e.ToString());
+            logger.LogInfo(e.ToString());
         }
 
         //Note - WebSocket4Net is based on SuperSocket 2.0
         private void OnError(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
         {
             //Logger.LogWarning(e.Exception.Message);
-            Logger.LogException(e.Exception);
+            logger.LogException(e.Exception);
         }
 
         private void HandleEvent(DiscordGatewayPayload payload)
         {
-            //TODO: This doesn't need a try catch, as it should Invoke(), it should not throw
+            //TODO: Is try-catch needed here?
             try
             {
-                messageCallback.Invoke(payload);
-
-                //string messageType = payload.EventType;
-                //switch (messageType)
-                //{
-                //    case "MESSAGE_CREATE":
-                //        messageCallback.Invoke(payload.EventData);
-                //        break;
-                //    case "GUILD_CREATE":
-                //        guildCreateCallback.Invoke(payload.EventData);
-                //        break;
-                //    default:
-                //        break;
-                //}
+                messageCallback?.Invoke(payload);
             }
             catch(Exception ex)
             {
-                Logger.LogException(ex);
+                logger.LogException(ex);
             }
             //string sender = payload["s"]
             //messageCallback.Invoke()
@@ -231,7 +233,7 @@ namespace DiscordBot.DiscordAPI
             }
             catch (Exception ex)
             {
-                Logger.LogException(ex);
+                logger.LogException(ex);
             }
         }
 
@@ -245,21 +247,28 @@ namespace DiscordBot.DiscordAPI
 
         private void Heartbeat(object sender, ElapsedEventArgs e)
         {
-            if (heartbeatAcknowledged)
+            try
             {
-                JObject payload = new JObject();
-                payload["op"] = (int)OpCode.Heartbeat;
-                payload["d"] = lastHeartbeatSequence;
+                if (heartbeatAcknowledged)
+                {
+                    JObject payload = new JObject();
+                    payload["op"] = (int)OpCode.Heartbeat;
+                    payload["d"] = lastHeartbeatSequence;
 
-                webSocket.Send(payload.ToString());
+                    webSocket.Send(payload.ToString());
 
-                heartbeatAcknowledged = false;
+                    heartbeatAcknowledged = false;
+                }
+                else
+                {
+                    //Heartbeat was not acknowledged.
+                    //TODO: Handle heartbeat missed
+                    //Discord recommends closing Gateway and attempting to reconnect
+                }
             }
-            else
+            catch (Exception ex)
             {
-                //Heartbeat was not acknowledged.
-                //TODO: Handle heartbeat missed
-                //Discord recommends closing Gateway and attempting to reconnect
+                logger.LogException(ex);
             }
         }
 
